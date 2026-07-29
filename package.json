@@ -5,6 +5,7 @@
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",
+    "start-portal": "node ./web-portal/server.js",
     "test:report": "playwright show-report"
   },
   "devDependencies": {

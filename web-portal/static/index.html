@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Test Portal</title>
+    <style>
+      body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:24px}
+      pre{background:#111;color:#dff;padding:12px;overflow:auto}
+      button{margin:4px}
+    </style>
+  </head>
+  <body>
+    <h1>Automation Test Portal</h1>
+    <div id="tests">Loading tests…</div>
+    <h2>Run Output</h2>
+    <pre id="output">(no run yet)</pre>
+
+    <script>
+      async function load() {
+        const r = await fetch('/api/tests');
+        const json = await r.json();
+        const container = document.getElementById('tests');
+        if (!json.tests || json.tests.length===0) {
+          container.innerText = 'No spec files found in /tests';
+          return;
+        }
+        container.innerHTML = '';
+        json.tests.forEach(spec => {
+          const div = document.createElement('div');
+          div.textContent = spec + ' ';
+          const runBtn = document.createElement('button');
+          runBtn.textContent = 'Run';
+          runBtn.onclick = async () => runSpec(spec);
+          div.appendChild(runBtn);
+
+          const streamBtn = document.createElement('button');
+          streamBtn.textContent = 'Stream';
+          streamBtn.onclick = () => startStream(spec);
+          div.appendChild(streamBtn);
+          container.appendChild(div);
+        });
+      }
+
+      async function runSpec(spec){
+        document.getElementById('output').textContent = 'Running ' + spec + '...';
+        const r = await fetch('/api/run', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({spec})});
+        const json = await r.json();
+        document.getElementById('output').textContent = JSON.stringify(json, null, 2);
+      }
+
+      function startStream(spec) {
+        const out = document.getElementById('output');
+        out.textContent = `Starting live stream for ${spec}\n`;
+        const src = new EventSource(`/api/stream?spec=${encodeURIComponent(spec)}`);
+        src.onmessage = e => {
+          out.textContent += e.data + '\n';
+          out.scrollTop = out.scrollHeight;
+        };
+        src.addEventListener('done', e => {
+          out.textContent += `\nProcess exited with code: ${e.data}\n`;
+          src.close();
+        });
+        src.onerror = e => {
+          out.textContent += '\n[Stream error]\n';
+          src.close();
+        };
+      }
+
+      load();
+    </script>
+  </body>
+ </html>
